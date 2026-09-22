@@ -1,20 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
-import {
-  History,
-  Pause,
-  Play,
-  RotateCcw,
-  Shuffle,
-  Trophy,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
-import { cn } from "cn";
+import { Pause, Play, RotateCcw, Shuffle, Volume2, VolumeX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -40,7 +29,6 @@ import { useTopicDeck } from "@/hooks/useTopicDeck";
 const DURATION = 60;
 
 type DifficultyFilter = "all" | Difficulty;
-type MobilePane = "practice" | "history";
 
 const typeCopy: Record<TopicType, { label: string; hint: string }> = {
   explainer: {
@@ -57,13 +45,6 @@ const typeCopy: Record<TopicType, { label: string; hint: string }> = {
   },
 };
 
-function formatWhen(iso: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(iso));
-}
-
 function useIsClient() {
   return useSyncExternalStore(
     () => () => {},
@@ -75,7 +56,6 @@ function useIsClient() {
 export function PracticeApp() {
   const isClient = useIsClient();
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("all");
-  const [mobilePane, setMobilePane] = useState<MobilePane>("practice");
   const pool = useMemo(
     () =>
       difficulty === "all"
@@ -86,90 +66,50 @@ export function PracticeApp() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <AppHeader
-        mobilePane={mobilePane}
-        onToggleMobilePane={() =>
-          setMobilePane((pane) =>
-            pane === "practice" ? "history" : "practice"
-          )
-        }
-      />
-      <main className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 gap-4 px-4 py-3 md:grid-cols-[minmax(0,1fr)_18rem] md:gap-6 md:px-8 md:py-5">
+      <AppHeader />
+      <main className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 items-center justify-center px-5 py-4 md:px-10">
         {isClient ? (
           <PracticeSession
             key={difficulty}
             pool={pool}
             difficulty={difficulty}
             onDifficultyChange={setDifficulty}
-            className={mobilePane === "history" ? "hidden md:flex" : "flex"}
           />
         ) : (
-          <section className="grid min-h-0 place-items-center">
-            <p className="text-sm text-muted-foreground">Drawing a topic…</p>
-          </section>
+          <p className="text-muted-foreground">Drawing a topic…</p>
         )}
-        <HistoryPanel
-          className={mobilePane === "practice" ? "hidden md:flex" : "flex"}
-        />
       </main>
     </div>
   );
 }
 
-function AppHeader({
-  mobilePane,
-  onToggleMobilePane,
-}: {
-  mobilePane: MobilePane;
-  onToggleMobilePane: () => void;
-}) {
-  const history = usePracticeHistory();
+function AppHeader() {
   const { muted, toggleMuted } = useSound();
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3 md:px-8">
+    <header className="flex shrink-0 items-center justify-between gap-3 px-5 py-4 md:px-10">
       <div className="flex items-center gap-3">
-        <span className="grid size-8 place-items-center rounded-full bg-[oklch(0.78_0.08_70)] text-sm font-semibold text-[oklch(0.22_0.02_90)]">
+        <span className="grid size-9 place-items-center rounded-full bg-[oklch(0.78_0.08_70)] text-sm font-semibold text-[oklch(0.22_0.02_90)]">
           1m
         </span>
         <div>
-          <p className="font-heading text-lg leading-none tracking-tight">
+          <p className="font-heading text-xl leading-none tracking-tight">
             Kickoff
           </p>
-          <p className="hidden text-xs text-muted-foreground sm:block">
+          <p className="text-xs text-muted-foreground">
             1-minute football speaking
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Trophy className="hidden size-4 sm:block" />
-        <span className="mr-1 hidden sm:inline">
-          {history.average
-            ? `Avg ${history.average.toFixed(1)} / 5`
-            : "No ratings yet"}
-        </span>
-        <Button
-          variant="outline"
-          size="icon"
-          className="rounded-full md:hidden"
-          aria-label={
-            mobilePane === "practice" ? "Show topic history" : "Back to practice"
-          }
-          aria-pressed={mobilePane === "history"}
-          onClick={onToggleMobilePane}
-        >
-          <History />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="rounded-full"
-          aria-label={muted ? "Unmute timer sounds" : "Mute timer sounds"}
-          aria-pressed={!muted}
-          onClick={toggleMuted}
-        >
-          {muted ? <VolumeX /> : <Volume2 />}
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="icon-lg"
+        className="rounded-full"
+        aria-label={muted ? "Unmute timer sounds" : "Mute timer sounds"}
+        aria-pressed={!muted}
+        onClick={toggleMuted}
+      >
+        {muted ? <VolumeX /> : <Volume2 />}
+      </Button>
     </header>
   );
 }
@@ -178,12 +118,10 @@ function PracticeSession({
   pool,
   difficulty,
   onDifficultyChange,
-  className,
 }: {
   pool: Topic[];
   difficulty: DifficultyFilter;
   onDifficultyChange: (value: DifficultyFilter) => void;
-  className?: string;
 }) {
   const [roundId, setRoundId] = useState<string | null>(null);
   const [pendingRating, setPendingRating] = useState(false);
@@ -258,13 +196,8 @@ function PracticeSession({
   }
 
   return (
-    <section
-      className={cn(
-        "min-h-0 flex-col items-center justify-center gap-[clamp(0.5rem,1.6vh,1.25rem)] overflow-y-auto text-center",
-        className
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-center gap-2">
+    <section className="flex min-h-0 w-full flex-col items-center justify-center gap-[clamp(0.75rem,2.4vh,1.75rem)] text-center">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <Select
           value={difficulty}
           onValueChange={(value) => {
@@ -272,7 +205,7 @@ function PracticeSession({
             onDifficultyChange(value as DifficultyFilter);
           }}
         >
-          <SelectTrigger className="min-w-40 rounded-full border-foreground/15 bg-foreground/5 px-4">
+          <SelectTrigger className="h-10 min-w-44 rounded-full border-foreground/15 bg-foreground/5 px-4 text-base">
             <SelectValue />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
@@ -282,32 +215,35 @@ function PracticeSession({
             <SelectItem value="hard">Hard</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {remainingCount} left in this shuffle
         </p>
       </div>
 
       {current ? (
-        <div className="flex flex-col items-center gap-[clamp(0.35rem,1vh,0.75rem)]">
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-[11px] font-semibold tracking-[0.28em] text-[oklch(0.78_0.08_70)] uppercase">
+            Your topic
+          </p>
           <div className="flex items-center justify-center gap-2">
             <Badge
               variant={current.type === "debate" ? "default" : "outline"}
               className={
                 current.type === "debate"
-                  ? "border-transparent bg-[oklch(0.78_0.08_70)] text-[oklch(0.22_0.02_90)]"
-                  : ""
+                  ? "h-6 border-transparent bg-[oklch(0.78_0.08_70)] px-2.5 text-sm text-[oklch(0.22_0.02_90)]"
+                  : "h-6 px-2.5 text-sm"
               }
             >
               {typeCopy[current.type].label}
             </Badge>
-            <Badge variant="secondary" className="capitalize">
+            <Badge variant="secondary" className="h-6 px-2.5 text-sm capitalize">
               {current.difficulty}
             </Badge>
           </div>
-          <h1 className="font-heading max-w-3xl text-[clamp(1.5rem,4.4vh,2.75rem)] leading-tight text-balance">
+          <h1 className="font-heading max-w-4xl text-[clamp(2.1rem,6.5vh,4.25rem)] leading-[1.12] text-balance">
             {displayedPrompt}
           </h1>
-          <p className="hidden max-w-lg text-sm text-muted-foreground sm:block">
+          <p className="max-w-xl text-base text-muted-foreground">
             {typeCopy[current.type].hint}
           </p>
         </div>
@@ -315,13 +251,13 @@ function PracticeSession({
         <p className="text-muted-foreground">No topics in this filter.</p>
       )}
 
-      <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-col items-center gap-2">
         <TimerRing
           progress={timer.progress}
           secondsLeft={timer.secondsLeft}
           urgency={urgent}
         />
-        <p className="text-xs tracking-wide text-muted-foreground uppercase">
+        <p className="text-sm tracking-wide text-muted-foreground uppercase">
           {timer.status === "idle" && "Ready when you are"}
           {timer.status === "running" &&
             (urgent ? "Ten seconds — wrap it up" : "Keep talking")}
@@ -330,10 +266,10 @@ function PracticeSession({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <Button
           size="lg"
-          className="h-11 rounded-full bg-[oklch(0.78_0.08_70)] px-5 text-[oklch(0.22_0.02_90)] hover:bg-[oklch(0.74_0.08_70)]"
+          className="h-12 rounded-full bg-[oklch(0.78_0.08_70)] px-6 text-base text-[oklch(0.22_0.02_90)] hover:bg-[oklch(0.74_0.08_70)]"
           onClick={handleDrawAnother}
           disabled={!current || spinning}
         >
@@ -343,7 +279,7 @@ function PracticeSession({
         <Button
           size="lg"
           variant="outline"
-          className="h-11 rounded-full px-5"
+          className="h-12 rounded-full px-6 text-base"
           onClick={handleStart}
           disabled={!current || timer.status === "finished" || spinning}
         >
@@ -361,7 +297,7 @@ function PracticeSession({
         <Button
           size="lg"
           variant="ghost"
-          className="h-11 rounded-full px-4"
+          className="h-12 rounded-full px-5 text-base"
           onClick={() => {
             timer.reset();
             setPendingRating(false);
@@ -374,15 +310,15 @@ function PracticeSession({
       </div>
 
       {timer.status === "finished" && pendingRating && (
-        <div className="flex items-center gap-3 rounded-full border border-foreground/10 bg-foreground/4 px-4 py-2">
-          <p className="text-sm font-medium">How did that round feel?</p>
-          <div className="flex gap-1.5">
+        <div className="flex items-center gap-3 rounded-full border border-foreground/10 bg-foreground/4 px-5 py-2.5">
+          <p className="text-base font-medium">How did that round feel?</p>
+          <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((score) => (
               <Button
                 key={score}
                 variant="outline"
-                size="icon-sm"
-                className="rounded-full"
+                size="icon"
+                className="size-10 rounded-full text-base"
                 onClick={() => handleRate(score)}
               >
                 {score}
@@ -393,55 +329,10 @@ function PracticeSession({
       )}
 
       {timer.status === "finished" && !pendingRating && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Rated. Draw another topic whenever you&apos;re ready.
         </p>
       )}
     </section>
-  );
-}
-
-function HistoryPanel({ className }: { className?: string }) {
-  const history = usePracticeHistory();
-  return (
-    <aside className={cn("min-h-0 flex-col", className)}>
-      <Card className="flex min-h-0 flex-1 flex-col bg-card/60">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <History className="size-4" />
-            Topic history
-          </CardTitle>
-          {history.entries.length > 0 && (
-            <Button variant="ghost" size="xs" onClick={history.clear}>
-              Clear
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4">
-          {history.entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Finished rounds land here with a timestamp. Ratings stick in this
-              browser.
-            </p>
-          ) : (
-            history.entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="rounded-lg border border-foreground/8 bg-background/40 p-3 text-left"
-              >
-                <p className="text-sm leading-snug">{entry.prompt}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>{formatWhen(entry.startedAt)}</span>
-                  <span className="capitalize">{entry.type}</span>
-                  {typeof entry.rating === "number" && (
-                    <span>{entry.rating}/5</span>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </aside>
   );
 }

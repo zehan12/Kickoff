@@ -9,8 +9,8 @@ type TimerRingProps = {
 };
 
 export function TimerRing({ progress, secondsLeft, urgency }: TimerRingProps) {
-  const size = 220;
-  const stroke = 8;
+  const size = 280;
+  const stroke = 10;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - progress);
@@ -19,7 +19,7 @@ export function TimerRing({ progress, secondsLeft, urgency }: TimerRingProps) {
   const secs = whole % 60;
 
   return (
-    <div className="relative grid size-[clamp(7rem,20vh,12rem)] shrink-0 place-items-center">
+    <div className="relative grid size-[clamp(11rem,32vh,18rem)] shrink-0 place-items-center">
       <svg
         viewBox={`0 0 ${size} ${size}`}
         className="size-full -rotate-90"
@@ -53,7 +53,7 @@ export function TimerRing({ progress, secondsLeft, urgency }: TimerRingProps) {
       <div className="absolute inset-0 grid place-items-center">
         <p
           className={cn(
-            "font-heading text-[clamp(1.75rem,5vh,3rem)] tracking-tight tabular-nums",
+            "font-heading text-[clamp(2.5rem,8vh,4.5rem)] tracking-tight tabular-nums",
             urgency && "text-destructive"
           )}
         >
