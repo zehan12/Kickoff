@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   History,
   Pause,
@@ -8,6 +8,8 @@ import {
   RotateCcw,
   Shuffle,
   Trophy,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,10 +23,17 @@ import {
 } from "@/components/ui/select";
 import { TimerRing } from "@/components/timer-ring";
 import { topics as topicBank } from "@/data/topics";
-import { playCue } from "@/lib/audio";
+import {
+  playSpinTick,
+  playTimerCompleted,
+  playTopicLanded,
+  playWarnCue,
+  unlockSound,
+} from "@/lib/audio";
 import type { Difficulty, Topic, TopicType } from "@/lib/types";
 import { useCountdown } from "@/hooks/useCountdown";
 import { usePracticeHistory } from "@/hooks/usePracticeHistory";
+import { useSound } from "@/hooks/useSound";
 import { useTopicDeck } from "@/hooks/useTopicDeck";
 
 const DURATION = 60;
@@ -96,6 +105,7 @@ export function PracticeApp() {
 
 function AppHeader() {
   const history = usePracticeHistory();
+  const { muted, toggleMuted } = useSound();
   return (
     <header className="flex items-center justify-between gap-4 border-b border-foreground/8 px-5 py-4 md:px-8">
       <div className="flex items-center gap-3">
@@ -111,13 +121,23 @@ function AppHeader() {
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Trophy className="size-4" />
-        <span>
+        <span className="mr-1">
           {history.average
             ? `Avg ${history.average.toFixed(1)} / 5`
             : "No ratings yet"}
         </span>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          aria-label={muted ? "Unmute timer sounds" : "Mute timer sounds"}
+          aria-pressed={!muted}
+          onClick={toggleMuted}
+        >
+          {muted ? <VolumeX /> : <Volume2 />}
+        </Button>
       </div>
     </header>
   );
@@ -134,15 +154,18 @@ function PracticeSession({
 }) {
   const [roundId, setRoundId] = useState<string | null>(null);
   const [pendingRating, setPendingRating] = useState(false);
+  const [spinning, setSpinning] = useState(false);
+  const [spinPrompt, setSpinPrompt] = useState<string | null>(null);
+  const spinToken = useRef(0);
   const { current, remainingCount, drawNext } = useTopicDeck(pool);
   const history = usePracticeHistory();
   const timer = useCountdown({
     duration: DURATION,
     onWarn: () => {
-      void playCue("warn");
+      playWarnCue();
     },
     onComplete: () => {
-      void playCue("end");
+      playTimerCompleted();
       if (!current) return;
       const id = crypto.randomUUID();
       setRoundId(id);
@@ -159,12 +182,40 @@ function PracticeSession({
   });
 
   const urgent = timer.status === "running" && timer.secondsLeft <= 10;
+  const displayedPrompt = spinPrompt ?? current?.prompt;
 
-  function handleDrawAnother() {
-    drawNext();
+  function handleStart() {
+    unlockSound();
+    timer.toggle();
+  }
+
+  async function handleDrawAnother() {
+    if (spinning || pool.length === 0) return;
+    unlockSound();
     timer.reset();
     setPendingRating(false);
     setRoundId(null);
+
+    const token = spinToken.current + 1;
+    spinToken.current = token;
+    setSpinning(true);
+
+    const frames = 10;
+    for (let i = 0; i < frames; i += 1) {
+      if (spinToken.current !== token) return;
+      const preview = pool[Math.floor(Math.random() * pool.length)];
+      setSpinPrompt(preview.prompt);
+      playSpinTick(1 - (i / frames) * 0.6);
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 45 + i * 8);
+      });
+    }
+
+    if (spinToken.current !== token) return;
+    drawNext();
+    setSpinPrompt(null);
+    setSpinning(false);
+    playTopicLanded();
   }
 
   function handleRate(rating: number) {
@@ -223,7 +274,7 @@ function PracticeSession({
             </Badge>
           </div>
           <h1 className="font-heading max-w-3xl text-4xl leading-tight text-balance sm:text-5xl">
-            {current.prompt}
+            {displayedPrompt}
           </h1>
           <p className="mt-4 max-w-lg text-sm text-muted-foreground">
             {typeCopy[current.type].hint}
@@ -249,22 +300,22 @@ function PracticeSession({
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <Button
-          size="lg"
-          className="h-11 rounded-full bg-[oklch(0.78_0.08_70)] px-5 text-[oklch(0.22_0.02_90)] hover:bg-[oklch(0.74_0.08_70)]"
-          onClick={handleDrawAnother}
-          disabled={!current}
-        >
-          <Shuffle data-icon="inline-start" />
-          Draw another
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          className="h-11 rounded-full px-5"
-          onClick={timer.toggle}
-          disabled={!current || timer.status === "finished"}
-        >
+            <Button
+              size="lg"
+              className="h-11 rounded-full bg-[oklch(0.78_0.08_70)] px-5 text-[oklch(0.22_0.02_90)] hover:bg-[oklch(0.74_0.08_70)]"
+              onClick={handleDrawAnother}
+              disabled={!current || spinning}
+            >
+              <Shuffle data-icon="inline-start" />
+              Draw another
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-11 rounded-full px-5"
+              onClick={handleStart}
+              disabled={!current || timer.status === "finished" || spinning}
+            >
           {timer.status === "running" ? (
             <Pause data-icon="inline-start" />
           ) : (
