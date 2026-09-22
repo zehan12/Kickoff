@@ -11,6 +11,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +40,7 @@ import { useTopicDeck } from "@/hooks/useTopicDeck";
 const DURATION = 60;
 
 type DifficultyFilter = "all" | Difficulty;
+type MobilePane = "practice" | "history";
 
 const typeCopy: Record<TopicType, { label: string; hint: string }> = {
   explainer: {
@@ -73,6 +75,7 @@ function useIsClient() {
 export function PracticeApp() {
   const isClient = useIsClient();
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("all");
+  const [mobilePane, setMobilePane] = useState<MobilePane>("practice");
   const pool = useMemo(
     () =>
       difficulty === "all"
@@ -82,32 +85,48 @@ export function PracticeApp() {
   );
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <AppHeader />
-      <main className="mx-auto grid w-full max-w-6xl flex-1 gap-10 px-5 py-10 md:grid-cols-[minmax(0,1fr)_320px] md:px-8">
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <AppHeader
+        mobilePane={mobilePane}
+        onToggleMobilePane={() =>
+          setMobilePane((pane) =>
+            pane === "practice" ? "history" : "practice"
+          )
+        }
+      />
+      <main className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 gap-4 px-4 py-3 md:grid-cols-[minmax(0,1fr)_18rem] md:gap-6 md:px-8 md:py-5">
         {isClient ? (
           <PracticeSession
             key={difficulty}
             pool={pool}
             difficulty={difficulty}
-            onDifficultyChange={(value) => setDifficulty(value)}
+            onDifficultyChange={setDifficulty}
+            className={mobilePane === "history" ? "hidden md:flex" : "flex"}
           />
         ) : (
-          <section className="flex flex-col items-center justify-center text-center">
+          <section className="grid min-h-0 place-items-center">
             <p className="text-sm text-muted-foreground">Drawing a topic…</p>
           </section>
         )}
-        <HistoryPanel />
+        <HistoryPanel
+          className={mobilePane === "practice" ? "hidden md:flex" : "flex"}
+        />
       </main>
     </div>
   );
 }
 
-function AppHeader() {
+function AppHeader({
+  mobilePane,
+  onToggleMobilePane,
+}: {
+  mobilePane: MobilePane;
+  onToggleMobilePane: () => void;
+}) {
   const history = usePracticeHistory();
   const { muted, toggleMuted } = useSound();
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-foreground/8 px-5 py-4 md:px-8">
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3 md:px-8">
       <div className="flex items-center gap-3">
         <span className="grid size-8 place-items-center rounded-full bg-[oklch(0.78_0.08_70)] text-sm font-semibold text-[oklch(0.22_0.02_90)]">
           1m
@@ -116,18 +135,30 @@ function AppHeader() {
           <p className="font-heading text-lg leading-none tracking-tight">
             Kickoff
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="hidden text-xs text-muted-foreground sm:block">
             1-minute football speaking
           </p>
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Trophy className="size-4" />
-        <span className="mr-1">
+        <Trophy className="hidden size-4 sm:block" />
+        <span className="mr-1 hidden sm:inline">
           {history.average
             ? `Avg ${history.average.toFixed(1)} / 5`
             : "No ratings yet"}
         </span>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full md:hidden"
+          aria-label={
+            mobilePane === "practice" ? "Show topic history" : "Back to practice"
+          }
+          aria-pressed={mobilePane === "history"}
+          onClick={onToggleMobilePane}
+        >
+          <History />
+        </Button>
         <Button
           variant="outline"
           size="icon"
@@ -147,10 +178,12 @@ function PracticeSession({
   pool,
   difficulty,
   onDifficultyChange,
+  className,
 }: {
   pool: Topic[];
   difficulty: DifficultyFilter;
   onDifficultyChange: (value: DifficultyFilter) => void;
+  className?: string;
 }) {
   const [roundId, setRoundId] = useState<string | null>(null);
   const [pendingRating, setPendingRating] = useState(false);
@@ -225,12 +258,13 @@ function PracticeSession({
   }
 
   return (
-    <section className="flex flex-col items-center text-center">
-      <p className="mb-4 max-w-md text-sm text-muted-foreground">
-        Speak with no prep, or give yourself a short moment to think.
-      </p>
-
-      <div className="mb-10 flex flex-wrap items-center justify-center gap-3">
+    <section
+      className={cn(
+        "min-h-0 flex-col items-center justify-center gap-[clamp(0.5rem,1.6vh,1.25rem)] overflow-y-auto text-center",
+        className
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <Select
           value={difficulty}
           onValueChange={(value) => {
@@ -254,11 +288,8 @@ function PracticeSession({
       </div>
 
       {current ? (
-        <>
-          <p className="mb-3 text-[11px] font-semibold tracking-[0.22em] text-[oklch(0.78_0.08_70)] uppercase">
-            Your topic
-          </p>
-          <div className="mb-4 flex items-center justify-center gap-2">
+        <div className="flex flex-col items-center gap-[clamp(0.35rem,1vh,0.75rem)]">
+          <div className="flex items-center justify-center gap-2">
             <Badge
               variant={current.type === "debate" ? "default" : "outline"}
               className={
@@ -273,24 +304,24 @@ function PracticeSession({
               {current.difficulty}
             </Badge>
           </div>
-          <h1 className="font-heading max-w-3xl text-4xl leading-tight text-balance sm:text-5xl">
+          <h1 className="font-heading max-w-3xl text-[clamp(1.5rem,4.4vh,2.75rem)] leading-tight text-balance">
             {displayedPrompt}
           </h1>
-          <p className="mt-4 max-w-lg text-sm text-muted-foreground">
+          <p className="hidden max-w-lg text-sm text-muted-foreground sm:block">
             {typeCopy[current.type].hint}
           </p>
-        </>
+        </div>
       ) : (
         <p className="text-muted-foreground">No topics in this filter.</p>
       )}
 
-      <div className="mt-10">
+      <div className="flex flex-col items-center gap-1">
         <TimerRing
           progress={timer.progress}
           secondsLeft={timer.secondsLeft}
           urgency={urgent}
         />
-        <p className="mt-2 text-xs tracking-wide text-muted-foreground uppercase">
+        <p className="text-xs tracking-wide text-muted-foreground uppercase">
           {timer.status === "idle" && "Ready when you are"}
           {timer.status === "running" &&
             (urgent ? "Ten seconds — wrap it up" : "Keep talking")}
@@ -299,23 +330,23 @@ function PracticeSession({
         </p>
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button
-              size="lg"
-              className="h-11 rounded-full bg-[oklch(0.78_0.08_70)] px-5 text-[oklch(0.22_0.02_90)] hover:bg-[oklch(0.74_0.08_70)]"
-              onClick={handleDrawAnother}
-              disabled={!current || spinning}
-            >
-              <Shuffle data-icon="inline-start" />
-              Draw another
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-11 rounded-full px-5"
-              onClick={handleStart}
-              disabled={!current || timer.status === "finished" || spinning}
-            >
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Button
+          size="lg"
+          className="h-11 rounded-full bg-[oklch(0.78_0.08_70)] px-5 text-[oklch(0.22_0.02_90)] hover:bg-[oklch(0.74_0.08_70)]"
+          onClick={handleDrawAnother}
+          disabled={!current || spinning}
+        >
+          <Shuffle data-icon="inline-start" />
+          Draw another
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-11 rounded-full px-5"
+          onClick={handleStart}
+          disabled={!current || timer.status === "finished" || spinning}
+        >
           {timer.status === "running" ? (
             <Pause data-icon="inline-start" />
           ) : (
@@ -343,14 +374,15 @@ function PracticeSession({
       </div>
 
       {timer.status === "finished" && pendingRating && (
-        <div className="mt-8 rounded-2xl border border-foreground/10 bg-foreground/4 px-6 py-5">
-          <p className="mb-3 text-sm font-medium">How did that round feel?</p>
-          <div className="flex justify-center gap-2">
+        <div className="flex items-center gap-3 rounded-full border border-foreground/10 bg-foreground/4 px-4 py-2">
+          <p className="text-sm font-medium">How did that round feel?</p>
+          <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map((score) => (
               <Button
                 key={score}
                 variant="outline"
-                className="size-10 rounded-full"
+                size="icon-sm"
+                className="rounded-full"
                 onClick={() => handleRate(score)}
               >
                 {score}
@@ -361,7 +393,7 @@ function PracticeSession({
       )}
 
       {timer.status === "finished" && !pendingRating && (
-        <p className="mt-6 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Rated. Draw another topic whenever you&apos;re ready.
         </p>
       )}
@@ -369,11 +401,11 @@ function PracticeSession({
   );
 }
 
-function HistoryPanel() {
+function HistoryPanel({ className }: { className?: string }) {
   const history = usePracticeHistory();
   return (
-    <aside>
-      <Card className="bg-card/60">
+    <aside className={cn("min-h-0 flex-col", className)}>
+      <Card className="flex min-h-0 flex-1 flex-col bg-card/60">
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <History className="size-4" />
@@ -385,7 +417,7 @@ function HistoryPanel() {
             </Button>
           )}
         </CardHeader>
-        <CardContent className="max-h-[70vh] space-y-3 overflow-y-auto pb-4">
+        <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-4">
           {history.entries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Finished rounds land here with a timestamp. Ratings stick in this

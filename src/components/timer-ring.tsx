@@ -19,12 +19,10 @@ export function TimerRing({ progress, secondsLeft, urgency }: TimerRingProps) {
   const secs = whole % 60;
 
   return (
-    <div className="relative mx-auto grid size-[220px] place-items-center">
+    <div className="relative grid size-[clamp(7rem,20vh,12rem)] shrink-0 place-items-center">
       <svg
-        width={size}
-        height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
+        className="size-full -rotate-90"
         aria-hidden="true"
       >
         <circle
@@ -55,7 +53,7 @@ export function TimerRing({ progress, secondsLeft, urgency }: TimerRingProps) {
       <div className="absolute inset-0 grid place-items-center">
         <p
           className={cn(
-            "font-heading text-5xl tracking-tight tabular-nums",
+            "font-heading text-[clamp(1.75rem,5vh,3rem)] tracking-tight tabular-nums",
             urgency && "text-destructive"
           )}
         >
